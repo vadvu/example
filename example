@@ -1,0 +1,147 @@
+
+#activate libraries
+
+library(tidyr)
+library(foreign)
+library(reshape2)
+library(readxl)
+library(plyr)
+library(dplyr)
+library(fixest)
+library(writexl)
+library(ggplot2)
+library(gplots)
+library(stargazer)
+library(pglm)
+library(MASS)
+library(Hmisc)
+library(foreign)
+library(reshape)
+library(Hmisc)
+library(pastecs)
+library(robust)
+library(haven)
+library(car)
+library(effects)
+library(gvlma)
+library(leaps)
+library(gmodels)
+library(psych)
+library(hexbin)
+library(ggplot2)
+library(openxlsx)
+library(tidyverse)
+library(magrittr)
+library(ggeffects)
+library(clubSandwich)
+library(pscl)
+library(ggplot2)
+library(tibble)
+library(broom)
+library(margins)
+library(Ecdat)
+library(strengejacke)
+library(lme4)
+library(glmmTMB)
+library(brms)
+library(rstanarm)
+library(ggiraph)
+library(ggiraphExtra)
+library(ggpubr)
+library(AER)
+library(beepr)
+
+
+
+#upload data
+db_new <- read.csv("C:/Users/vvust/Desktop/RRR/baza_test_new2_reg.csv", sep=";")
+
+#work with data
+db_new2 <- db_new 
+db_new2[db_new2==-999]<-NA 
+db_new2[db_new2==666]<-NA 
+opis<- c("year", "c_names", "region", "NVC_1.3_NONVIOL", "NVC_Kor_NONVIOL", "mean_year_schooling", "Dahlum_1", "population_UN", "cnts_area1",
+         "cnts_pop_density" ,"vdem_electoral_democracy_index", "epr_discriminated", "vdem_gdp_pc_log", "share_urban_population_UN", "share_15__29",
+         "UN_Median_Age", "Revolutions_pure", "Revolutions_with_doubts", "Something_revolutionary")
+db_n_opis_0 <-transform(db_new2, 
+                   area_ln = log(cnts_area1),
+                   ln_population = log(population_UN),
+                   ln_gdp_pc = log(vdem_gdp_per_capita))
+db_n_opis <- within(db_n_opis_0,
+                {NVC_1.3_separatism <- NA
+                NVC_1.3_separatism[NVC_1.3_FSELFDET == 0 | NVC_1.3_SECESSION == 0]<-0
+                NVC_1.3_separatism[NVC_1.3_FSELFDET == 1 | NVC_1.3_SECESSION == 1]<-1
+                ten_years <- NA
+                ten_years[year >= 1950 & year <= 1959] <- 1
+                ten_years[year >= 1960 & year <= 1969] <- 2
+                ten_years[year >= 1970 & year <= 1979] <- 3
+                ten_years[year >= 1980 & year <= 1989] <- 4
+                ten_years[year >= 1990 & year <= 1999] <- 5
+                ten_years[year >= 2000 & year <= 2009] <- 6
+                ten_years[year >= 2010 & year <= 2019] <- 7
+                ten_years[year >= 2020 & year <= 2029] <- 8
+                new_region <- NA
+                new_region[region == "South Asia" | region == "East Asia" | region == "Southeast Asia" | region == "Central Asia"] <- "Asia"
+                new_region[region == "South America" | region == "North America" | region == "Central America & Caribbean"] <- "America"
+                new_region[region == "Sub-Saharan Africa" | region == "Middle East & North Africa"] <- "Africa"
+                new_region[region == "Eastern Europe" | region == "Western Europe"] <- "Europe"
+                new_region[region == "Australasia & Oceania"] <- "Australasia & Oceania"})
+
+db_n_opis_y1950 <- db_n_opis[db_n_opis$year >= 1950,]
+db_sep<-db_n_opis_y1950[db_n_opis_y1950$NVC_1.3_separatism == 1,]
+db_ost<-db_n_opis_y1950[db_n_opis_y1950$NVC_1.3_separatism == 0,]
+db_all_rev<-db_n_opis_y1950[db_n_opis_y1950$Revolutions_with_doubts == 1,]
+db_sep_rev <- db_sep[db_sep$Revolutions_with_doubts == 1,]
+db_ost_rev <- db_ost[db_ost$Revolutions_with_doubts == 1,]
+
+#logistic models
+m1 <- glm(NVC_1.3_NONVIOL ~ mean_year_schooling + ten_years + new_region, data=db_n_opis_y1950, family=binomial(link = "logit"))
+m2 <- glm(NVC_1.3_NONVIOL ~ mean_year_schooling + ln_population + cnts_pop_density + area_ln+ ten_years + new_region,
+          data=db_n_opis_y1950, family=binomial(link = "logit"))
+m3 <- glm(NVC_1.3_NONVIOL ~ mean_year_schooling + ln_population + cnts_pop_density + area_ln + vdem_electoral_democracy_index+ ten_years + new_region,
+          data=db_n_opis_y1950, family=binomial(link = "logit"))
+m4 <- glm(NVC_1.3_NONVIOL ~ mean_year_schooling + ln_population + cnts_pop_density + area_ln + vdem_electoral_democracy_index + epr_discriminated+ ten_years + new_region,
+          data=db_n_opis_y1950, family=binomial(link = "logit"))
+m5 <- glm(NVC_1.3_NONVIOL ~ mean_year_schooling + ln_population + cnts_pop_density + area_ln + vdem_electoral_democracy_index + epr_discriminated +
+            ln_gdp_pc+ ten_years + new_region, data=db_n_opis_y1950, family=binomial(link = "logit"))
+m6 <- glm(NVC_1.3_NONVIOL ~ mean_year_schooling + ln_population + cnts_pop_density + area_ln + vdem_electoral_democracy_index + epr_discriminated +
+            share_urban_population_UN+ ten_years + new_region, data=db_n_opis_y1950, family=binomial(link = "logit"))
+m7 <- glm(NVC_1.3_NONVIOL ~ mean_year_schooling + ln_population + cnts_pop_density + area_ln + vdem_electoral_democracy_index + epr_discriminated +
+            share_15__29+ ten_years + new_region, data=db_n_opis_y1950, family=binomial(link = "logit"))
+m8 <- glm(NVC_1.3_NONVIOL ~ mean_year_schooling + ln_population + cnts_pop_density + area_ln + vdem_electoral_democracy_index + epr_discriminated +
+            UN_Median_Age+ ten_years + new_region, data=db_n_opis_y1950, family=binomial(link = "logit"))
+
+#create regression table
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8,
+          title="Table 1. Binomial regression of the revolution's type",
+          star.cutoffs = c(0.1, 0.05, 0.01, 0.001),
+          dep.var.labels = "Nonviolent (= 1) vs. Violent (= 0) revolutionary protests",
+          covariate.labels = c("Mean years of schooling", "Population (logged)", "Area (logged)", "Population Density", "Index of Electoral Democracy", "Share of Discriminated population", "GDP per capita (logged)", "Urbanization", "Share of youth", "Median age"),
+          column.labels = c("1", "2", "3","4","5","6","7","8", "9"),
+          keep.stat = c("n", "AIC"),
+          table.placement = "t",
+          model.names = TRUE,
+          model.numbers = FALSE,
+          notes.align = "l",
+          type="html",
+          omit = c("constant"),
+          style = "ajps",
+          out="C:/Users/vvust/Desktop/RRR/111111.htm")
+
+#vizualization of the best model 
+#Corrected odds ratious
+pup <- plot_model(m5, bpe = "mean", bpe.style = "dot", terms = c("Dahlum_1", "mean_year_schooling"), axis.lim = c(1, 2.5), title = "", axis.title = "Corrected ODDS ratio", axis.labels = c("Combined \n edcation index (Dahlum)", "Mean years of \n schooling"), ci.lvl = 0.95, show.values = T, value.size = 4, colors = "bw", show.legend = T)
+pup+theme(text=element_text(size=14, family="TT Times New Roman"))
+ 
+#prediction plot
+ggPredict(m5, jitter=FALSE)
+
+#iteraction model
+p1_1 <- ggpredict(m5, c("vdem_electoral_democracy_index", "epr_discriminated"))
+plot(p1_1)
+
+#boxplot
+qplot(nonviol_viol, mean_educat, data=data1, geom = c("boxplot"), fill=nonviol_viol)
+
+#residuals
+checkresiduals(m5)
